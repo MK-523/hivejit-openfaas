@@ -1,0 +1,64 @@
+name: Build George JDK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Clone UCLA JDK
+        run: |
+          mkdir -p work
+          if [ ! -d work/jdk25u ]; then
+            git clone https://github.com/ucla-progsoftsys/jdk25u work/jdk25u
+          fi
+          cd work/jdk25u
+          git checkout ggz/profiles-2
+
+      - name: Setup JDK 24
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '24'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf make cmake file zip unzip pkg-config gawk \
+            build-essential libcups2-dev libfontconfig1-dev \
+            libasound2-dev libfreetype6-dev libx11-dev \
+            libxext-dev libxrender-dev libxtst-dev
+
+      - name: Configure build
+        working-directory: work/jdk25u
+        run: |
+          bash configure \
+            --with-boot-jdk="$JAVA_HOME" \
+            --enable-headless-only=yes \
+            --with-jvm-variants=server \
+            --with-debug-level=release
+
+      - name: Build JDK
+        working-directory: work/jdk25u
+        run: |
+          make images
+
+      - name: Collect JDK
+        run: |
+          OUT_DIR=$(find work/jdk25u/build -type d -path "*/images/jdk" | head -n 1)
+          test -n "$OUT_DIR"
+          rm -rf work/george-jdk
+          cp -a "$OUT_DIR" work/george-jdk
+          work/george-jdk/bin/java -version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: george-jdk
+          path: work/george-jdk
