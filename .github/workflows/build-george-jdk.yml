@@ -33,8 +33,16 @@ jobs:
             autoconf make cmake file zip unzip pkg-config gawk \
             build-essential \
             libcups2-dev libfontconfig1-dev libasound2-dev libfreetype6-dev \
-            libx11-dev libxext-dev libxrender-dev \
-            libxrandr-dev libxtst-dev libxt-dev
+            libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev
+
+      - name: Verify X11 headers
+        run: |
+          dpkg -l | grep -E 'libx11-dev|libxext-dev|libxrender-dev|libxrandr-dev|libxtst-dev|libxt-dev'
+          test -f /usr/include/X11/Intrinsic.h
+          test -f /usr/include/X11/extensions/Xrandr.h
+          test -f /usr/include/X11/extensions/XTest.h
+          test -f /usr/include/X11/extensions/Xrender.h
+          test -f /usr/include/X11/extensions/shape.h
 
       - name: Configure build
         working-directory: work/jdk25u
@@ -63,4 +71,3 @@ jobs:
         with:
           name: george-jdk
           path: work/george-jdk
-
