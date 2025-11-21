@@ -63,9 +63,15 @@ jobs:
       - name: Collect JDK
         run: |
           OUT_DIR=$(find work/jdk25u/build -type d -path "*/images/jdk" | head -n 1)
+          echo "OUT_DIR=$OUT_DIR"
           test -n "$OUT_DIR"
+          ls -la "$OUT_DIR"
           rm -rf work/george-jdk
-          cp -a "$OUT_DIR" work/george-jdk
+          mkdir -p work/george-jdk
+          cp -a "$OUT_DIR"/. work/george-jdk/
+          ls -la work/george-jdk
+          ls -la work/george-jdk/bin
+          test -x work/george-jdk/bin/java
           work/george-jdk/bin/java -version
 
       - name: Upload artifact
