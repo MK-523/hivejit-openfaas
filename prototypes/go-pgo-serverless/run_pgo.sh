@@ -13,6 +13,8 @@ if ! command -v "$GO_BIN" >/dev/null 2>&1; then
 fi
 
 mkdir -p "$BUILD" "$ARTIFACTS" "$RESULTS"
+export GOCACHE="$BUILD/go-cache"
+export GOMODCACHE="$BUILD/go-mod-cache"
 
 BASE="$BUILD/profilecache-go-base"
 PGO="$BUILD/profilecache-go-pgo"
@@ -39,7 +41,7 @@ run_json() {
 : > "$LAST"
 
 echo "== Build baseline without PGO"
-"$GO_BIN" build -trimpath -pgo=off -o "$BASE" "$ROOT"
+(cd "$ROOT" && "$GO_BIN" build -trimpath -pgo=off -o "$BASE" .)
 
 echo "== Train baseline and export CPU pprof profile"
 "$BASE" --scenario train --invocations 4 --iterations 350000 --cpuprofile "$PROFILE" --json \
@@ -61,7 +63,7 @@ cat > "$MANIFEST" <<EOF
 EOF
 
 echo "== Build future binary with imported pprof profile"
-"$GO_BIN" build -trimpath -pgo="$PROFILE" -o "$PGO" "$ROOT"
+(cd "$ROOT" && "$GO_BIN" build -trimpath -pgo="$PROFILE" -o "$PGO" .)
 
 run_json baseline-hot "$BASE" --scenario serve-hot --invocations 6 --iterations 250000
 run_json pgo-hot "$PGO" --scenario serve-hot --invocations 6 --iterations 250000
