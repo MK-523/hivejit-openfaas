@@ -36,21 +36,31 @@ PROFILE_ITERS="5 10 20" ./run_profile_cache.sh
 - `handler.pgo.5` and `handler.pgo.10`: rebuilt AOT binaries using the imported profile cache.
 - `go-nopgo.csv`, `go-pgo-5.csv`, `go-pgo-10.csv`: cold process invocation timings.
 - `summary.csv`: mean, p50, p95, min, and max wall-clock latency.
+- `docs/figures/go-pgo-profile-cache-*.svg`: reproducible charts for the latest run.
 
 The workload intentionally uses a skewed route mix through interface dispatch. That gives Go PGO concrete hot-path information it can use for inlining and devirtualization decisions.
 
-On this machine, one 40-invocation run produced:
+On this machine, the graph run `go-pgo-graphs-20260511` produced:
 
 | label | n | mean wall ms | p50 wall ms | p95 wall ms |
 |---|---:|---:|---:|---:|
-| go-nopgo | 40 | 115.262 | 113.258 | 122.628 |
-| go-pgo-5 | 40 | 112.385 | 106.444 | 121.291 |
-| go-pgo-10 | 40 | 108.567 | 103.885 | 110.559 |
+| go-nopgo | 40 | 131.057 | 113.981 | 200.212 |
+| go-pgo-5 | 40 | 108.796 | 103.365 | 122.443 |
+| go-pgo-10 | 40 | 113.733 | 105.839 | 159.453 |
 
 Compiler evidence from the 10-profile build:
 
 ```text
 PGO devirtualizing interface call op.Apply to hashRoute.Apply
+```
+
+The graph generator can also be run directly against any result directory:
+
+```bash
+python3 plot_results.py \
+  --results results/<run-id> \
+  --out-dir ../../docs/figures \
+  --prefix go-pgo-profile-cache
 ```
 
 ## Serverless Mapping
