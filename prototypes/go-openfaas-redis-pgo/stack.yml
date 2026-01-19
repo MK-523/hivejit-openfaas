@@ -1,0 +1,26 @@
+version: "1.0"
+
+provider:
+  name: openfaas
+  gateway: ${OPENFAAS_GATEWAY}
+
+functions:
+  go-pgo-redis:
+    lang: dockerfile
+    handler: .
+    image: ${GO_PGO_IMAGE}
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "1"
+      com.openfaas.scale.zero: "false"
+    annotations:
+      com.openfaas.health.http.path: "/healthz"
+      com.openfaas.health.http.initialDelay: "2s"
+    environment:
+      REDIS_ADDR: ${REDIS_ADDR}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
+      REDIS_TIMEOUT: ${REDIS_TIMEOUT}
+      PROFILE_KEY_PREFIX: ${PROFILE_KEY_PREFIX}
+      BUILD_LABEL: ${BUILD_LABEL}
+      GOMAXPROCS: ${GOMAXPROCS}
