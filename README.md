@@ -35,8 +35,9 @@ the same abstraction maps to different artifact types.
   profile-artifact caching for serverless, not whole-process heap snapshotting.
 - Identified Go PGO and .NET PGO/ReadyToRun as the clean second and third
   non-JVM domains from the chat.
-- Checked the local toolchain: Go and `dotnet` are not installed here, but
-  Node 24 and Apple Clang are installed.
+- Checked the local toolchain. Go is now available locally; .NET was restored
+  for the latest run under `/private/tmp/dotnet-sdk`. Node 24 and Apple Clang
+  are also installed.
 - Added two runnable prototypes that fit the local environment:
   - [Node/V8 artifact cache](prototypes/node-v8-artifact-cache/README.md)
   - [LLVM AOT PGO loop](prototypes/llvm-aot-pgo/README.md)
@@ -56,6 +57,11 @@ the same abstraction maps to different artifact types.
 - Added JVM vs Go/.NET runtime comparison graphs:
   - [scripts/plot_runtime_comparison.py](scripts/plot_runtime_comparison.py)
   - [docs/runtime-comparison.md](docs/runtime-comparison.md)
+- Ran the Go/OpenFaaS Redis-backed profile-cache experiment:
+  - [prototypes/go-openfaas-redis-pgo](prototypes/go-openfaas-redis-pgo)
+  - [docs/go-openfaas-redis-pgo-results.md](docs/go-openfaas-redis-pgo-results.md)
+- Added a C#/.NET OpenFaaS ReadyToRun packaging prototype:
+  - [prototypes/dotnet-openfaas-readytorun](prototypes/dotnet-openfaas-readytorun)
 - Added the research map and benchmark plan in
   [docs/research-map.md](docs/research-map.md).
 - Added implementation notes for cache keys, heap traversal instrumentation,
@@ -105,6 +111,17 @@ Run the Go PGO prototype when Go is installed:
 ```bash
 bash prototypes/go-pgo-serverless/run_pgo.sh
 ```
+
+Run the Go profile-cache demo across the DaCapo-shaped Go workloads:
+
+```bash
+cd prototypes/go-pgo-cache-demo
+BENCHMARKS="dacapo-lusearch dacapo-eclipse dacapo-h2" PROFILE_ITERS="3 5" ./run_profile_cache.sh
+```
+
+Those benchmark aliases are Go-native workload shapes. The real DaCapo
+`lusearch`, `eclipse`, and `h2` programs are JVM benchmarks and should be used
+with the George/JVM path rather than as subprocesses for Go PGO.
 
 Run the C#/.NET ReadyToRun prototype when the .NET SDK is installed:
 
