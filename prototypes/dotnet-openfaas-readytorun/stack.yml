@@ -1,0 +1,21 @@
+version: "1.0"
+
+provider:
+  name: openfaas
+  gateway: ${OPENFAAS_GATEWAY}
+
+functions:
+  dotnet-r2r:
+    lang: dockerfile
+    handler: .
+    image: ${DOTNET_OPENFAAS_IMAGE}
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "1"
+      com.openfaas.scale.zero: "false"
+    annotations:
+      com.openfaas.health.http.path: "/healthz"
+      com.openfaas.health.http.initialDelay: "2s"
+    environment:
+      BUILD_LABEL: ${BUILD_LABEL}
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
