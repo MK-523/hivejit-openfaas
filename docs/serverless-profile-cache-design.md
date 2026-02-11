@@ -17,6 +17,7 @@ weights, parse artifacts, and precompiled code.
 | Node/V8 | `vm.Script.createCachedData()` bytes | `new vm.Script(..., { cachedData })` | `prototypes/node-v8-artifact-cache` |
 | LLVM/Clang | `.profraw` then `.profdata` | `clang -fprofile-instr-use` | `prototypes/llvm-aot-pgo` |
 | Go | CPU `pprof` | `go build -pgo=<profile>` | `prototypes/go-pgo-serverless` |
+| Python/domain-specific specialization | route/query profile JSON | generated specialization module import | `prototypes/python-profile-specialization` |
 | C#/.NET | `nettrace` converted to MIBC | `ReadyToRunOptimizationData=<mibc>` | `prototypes/dotnet-readytorun-pgo` |
 
 Run the local matrix with:
