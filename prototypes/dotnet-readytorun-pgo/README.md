@@ -33,6 +33,10 @@ dotnet-trace
 dotnet-pgo
 ```
 
+In this workspace, the .NET SDK is under `/private/tmp/dotnet-sdk` and the
+global `dotnet-trace` apphost needs `DOTNET_ROOT=/private/tmp/dotnet-sdk`.
+`dotnet-pgo` is not currently installed.
+
 Then:
 
 ```bash

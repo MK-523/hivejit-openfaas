@@ -1,0 +1,41 @@
+ARG BASE_IMAGE=julia-precompile:runtime
+ARG N_PROFILES=5
+
+FROM ${BASE_IMAGE}
+
+ARG N_PROFILES
+
+RUN set -eux; \
+    for attempt in 1 2 3 4 5; do \
+        rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/partial/*; \
+        apt-get clean; \
+        if apt-get update \
+              -o Acquire::Retries=5 \
+              -o Acquire::http::No-Cache=true \
+              -o Acquire::http::Pipeline-Depth=0 \
+              -o Acquire::BrokenProxy=true && \
+           apt-get install -y --no-install-recommends --fix-missing \
+              -o Acquire::Retries=5 \
+              -o Acquire::http::No-Cache=true \
+              -o Acquire::http::Pipeline-Depth=0 \
+              -o Acquire::BrokenProxy=true \
+              gcc g++; then \
+            break; \
+        fi; \
+        if [ "$attempt" = "5" ]; then exit 1; fi; \
+        sleep "$((attempt * 10))"; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
+
+COPY build_sysimage.jl /app/
+
+RUN julia --startup-file=no -e \
+    'using Pkg; Pkg.add("PackageCompiler"); Pkg.precompile(); println("PackageCompiler ready")'
+
+ENV JULIA_BUILD_SYSIMAGE=1
+RUN julia --startup-file=no /app/build_sysimage.jl ${N_PROFILES}
+
+ENV JULIA_BUILD_SYSIMAGE=""
+ENV JULIA_CACHE_MODE="sysimage"
+
+CMD ["/usr/local/bin/fwatchdog"]
