@@ -1,0 +1,22 @@
+version: 1.0
+provider:
+  name: openfaas
+  gateway: ${OPENFAAS_GATEWAY:-http://127.0.0.1:8080}
+
+functions:
+  julia-precompile:
+    image: ttl.sh/julia-precompile-maheshk:20260514-210248
+    imagePullPolicy: Never
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "1"
+      com.openfaas.scale.zero: "false"
+    environment:
+      JULIA_CACHE_MODE: ${JULIA_CACHE_MODE:-baseline}
+      JULIA_CACHE_KEY: ${JULIA_CACHE_KEY:-julia-precompile-trace:default}
+      REDIS_HOST: ${REDIS_HOST:-redis.openfaas-fn.svc.cluster.local}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      BUILD_LABEL: ${BUILD_LABEL:-local}
+      read_timeout: ${WATCHDOG_TIMEOUT:-180s}
+      write_timeout: ${WATCHDOG_TIMEOUT:-180s}
+      exec_timeout: ${WATCHDOG_TIMEOUT:-180s}
