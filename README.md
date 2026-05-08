@@ -53,6 +53,9 @@ the same abstraction maps to different artifact types.
   serverless functions:
   - [scripts/http_invoke_latency.py](scripts/http_invoke_latency.py)
   - [docs/serverless-http-benchmark.md](docs/serverless-http-benchmark.md)
+- Added JVM vs Go/.NET runtime comparison graphs:
+  - [scripts/plot_runtime_comparison.py](scripts/plot_runtime_comparison.py)
+  - [docs/runtime-comparison.md](docs/runtime-comparison.md)
 - Added the research map and benchmark plan in
   [docs/research-map.md](docs/research-map.md).
 - Added implementation notes for cache keys, heap traversal instrumentation,
@@ -83,6 +86,12 @@ Benchmark a deployed serverless HTTP endpoint and produce a latency graph:
 
 ```bash
 python3 scripts/http_invoke_latency.py --url http://127.0.0.1:8080/function/profilecache --requests 100
+```
+
+Generate JVM/OpenFaaS vs Go/.NET comparison graphs after running the prototypes:
+
+```bash
+python3 scripts/plot_runtime_comparison.py
 ```
 
 Rank export overhead buckets once HiveJIT emits CSV or JSONL timing logs:
