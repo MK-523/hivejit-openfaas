@@ -39,6 +39,7 @@ type result struct {
 	IterationsPerInvoke uint64   `json:"iterationsPerInvoke"`
 	ElapsedMs          float64   `json:"elapsedMs"`
 	PerInvocationNs    float64   `json:"perInvocationNs"`
+	InvocationTimesMs  []float64 `json:"invocationTimesMs"`
 	InvocationP50Ms    float64   `json:"invocationP50Ms"`
 	InvocationP95Ms    float64   `json:"invocationP95Ms"`
 	Checksum           uint64    `json:"checksum"`
@@ -190,6 +191,7 @@ func run(scenario string, invocations int, iterations uint64, profilePath string
 		IterationsPerInvoke: iterations,
 		ElapsedMs:           float64(elapsed.Nanoseconds()) / 1_000_000.0,
 		PerInvocationNs:     float64(elapsed.Nanoseconds()) / float64(invocations) / float64(iterations),
+		InvocationTimesMs:   invocationTimes,
 		InvocationP50Ms:     percentile(invocationTimes, 50),
 		InvocationP95Ms:     percentile(invocationTimes, 95),
 		Checksum:            checksum,

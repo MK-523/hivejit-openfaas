@@ -76,6 +76,7 @@ sealed record Result(
     ulong IterationsPerInvoke,
     double ElapsedMs,
     double PerInvocationNs,
+    IReadOnlyList<double> InvocationTimesMs,
     double InvocationP50Ms,
     double InvocationP95Ms,
     ulong Checksum);
@@ -161,6 +162,7 @@ static class Workload
             IterationsPerInvoke: iterations,
             ElapsedMs: total.Elapsed.TotalMilliseconds,
             PerInvocationNs: total.Elapsed.TotalMilliseconds * 1_000_000.0 / invocations / iterations,
+            InvocationTimesMs: invocationTimes,
             InvocationP50Ms: Percentile(invocationTimes, 50),
             InvocationP95Ms: Percentile(invocationTimes, 95),
             Checksum: checksum);
