@@ -40,8 +40,24 @@ the same abstraction maps to different artifact types.
 - Added two runnable prototypes that fit the local environment:
   - [Node/V8 artifact cache](prototypes/node-v8-artifact-cache/README.md)
   - [LLVM AOT PGO loop](prototypes/llvm-aot-pgo/README.md)
+- Added source-complete prototypes for the requested second and third non-JVM
+  domains:
+  - [Go PGO serverless loop](prototypes/go-pgo-serverless/README.md)
+  - [C#/.NET ReadyToRun + static PGO loop](prototypes/dotnet-readytorun-pgo/README.md)
+- Added a matrix runner that executes every available domain and skips missing
+  SDKs:
+  - [scripts/run_profile_cache_matrix.py](scripts/run_profile_cache_matrix.py)
+- Added a JVM/HiveJIT export-overhead analyzer for future instrumentation logs:
+  - [scripts/analyze_export_overhead.py](scripts/analyze_export_overhead.py)
+- Added an HTTP invocation benchmark and SVG graph generator for deployed
+  serverless functions:
+  - [scripts/http_invoke_latency.py](scripts/http_invoke_latency.py)
+  - [docs/serverless-http-benchmark.md](docs/serverless-http-benchmark.md)
 - Added the research map and benchmark plan in
   [docs/research-map.md](docs/research-map.md).
+- Added implementation notes for cache keys, heap traversal instrumentation,
+  function creation overhead, and benchmark selection in
+  [docs/serverless-profile-cache-design.md](docs/serverless-profile-cache-design.md).
 
 ## Quick Start
 
@@ -57,13 +73,43 @@ Run the native AOT PGO prototype:
 bash prototypes/llvm-aot-pgo/run_pgo.sh
 ```
 
+Run every available prototype as a serverless profile-cache matrix:
+
+```bash
+python3 scripts/run_profile_cache_matrix.py
+```
+
+Benchmark a deployed serverless HTTP endpoint and produce a latency graph:
+
+```bash
+python3 scripts/http_invoke_latency.py --url http://127.0.0.1:8080/function/profilecache --requests 100
+```
+
+Rank export overhead buckets once HiveJIT emits CSV or JSONL timing logs:
+
+```bash
+python3 scripts/analyze_export_overhead.py export-timings.jsonl
+```
+
+Run the Go PGO prototype when Go is installed:
+
+```bash
+bash prototypes/go-pgo-serverless/run_pgo.sh
+```
+
+Run the C#/.NET ReadyToRun prototype when the .NET SDK is installed:
+
+```bash
+bash prototypes/dotnet-readytorun-pgo/run_readytorun.sh
+```
+
 ## Current Domain Choices
 
 | Domain | Pattern | Why it matters |
 | --- | --- | --- |
 | JVM / HiveJIT | Execution -> MethodData export -> MethodData import -> eager JIT | Main research system; avoids whole heap traversal. |
-| Go PGO | Execution -> pprof export -> `go build -pgo` -> execution | Clean AOT version of the loop. |
-| .NET PGO + ReadyToRun | Execution -> trace/MIBC -> ReadyToRun publish -> execution | Managed runtime comparison with JIT and AOT pieces. |
+| Go PGO | Execution -> pprof export -> `go build -pgo` -> execution | Clean AOT version of the loop; implemented as a prototype. |
+| .NET PGO + ReadyToRun | Execution -> trace/MIBC -> ReadyToRun publish -> execution | Managed runtime comparison with JIT and AOT pieces; implemented as SDK/static-PGO scripts. |
 | Node/V8 | Execution -> V8 code cache export -> cachedData import -> execution | Runnable local prototype; useful serverless cold-start baseline. |
 | LLVM/Clang | Execution -> `.profraw` -> `.profdata` -> `-fprofile-use` -> execution | Strict AOT profile export/import loop; runnable local prototype. |
 
