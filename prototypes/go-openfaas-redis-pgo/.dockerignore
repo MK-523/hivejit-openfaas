@@ -1,0 +1,6 @@
+.cache/
+.runs/*/results/
+.runs/*/profiles/raw/
+.runs/*/profiles/*-profiles/invoke-*.pprof
+.runs/*/profiles/*-profiles/*.json
+.runs/*/profiles/*-profiles/*.svg

@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROTO_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$PROTO_DIR/../.." && pwd)"
+
+FUNCTION_NAME="go-pgo-redis"
+FUNCTION_NAMESPACE="${FUNCTION_NAMESPACE:-openfaas-fn}"
+OPENFAAS_NAMESPACE="${OPENFAAS_NAMESPACE:-openfaas}"
+OPENFAAS_GATEWAY="${OPENFAAS_GATEWAY:-http://127.0.0.1:8080}"
+
+RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
+PROFILE_ITERS="${PROFILE_ITERS:-5 10}"
+PROFILE_SECONDS="${PROFILE_SECONDS:-20}"
+PROFILE_LOAD_REQUESTS="${PROFILE_LOAD_REQUESTS:-120}"
+PROFILE_CONCURRENCY="${PROFILE_CONCURRENCY:-4}"
+MEASURE_REQUESTS="${MEASURE_REQUESTS:-80}"
+MEASURE_WARMUP="${MEASURE_WARMUP:-10}"
+MEASURE_CONCURRENCY="${MEASURE_CONCURRENCY:-1}"
+HANDLER_REQUESTS="${HANDLER_REQUESTS:-350000}"
+
+IMAGE_PREFIX="${IMAGE_PREFIX:-ttl.sh/${FUNCTION_NAME}-${USER:-user}}"
+PUSH_IMAGE="${PUSH_IMAGE:-1}"
+KIND_CLUSTER="${KIND_CLUSTER:-}"
+INSTALL_REDIS="${INSTALL_REDIS:-0}"
+OF_WATCHDOG_VERSION="${OF_WATCHDOG_VERSION:-0.9.16}"
+
+REDIS_ADDR="${REDIS_ADDR:-profile-cache-redis.${FUNCTION_NAMESPACE}.svc.cluster.local:6379}"
+REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+REDIS_DB="${REDIS_DB:-0}"
+REDIS_TIMEOUT="${REDIS_TIMEOUT:-10s}"
+PROFILE_KEY_PREFIX="${PROFILE_KEY_PREFIX:-go-pgo:${FUNCTION_NAME}}"
+GOMAXPROCS="${GOMAXPROCS:-1}"
+
+ARTIFACT_ROOT="$PROTO_DIR/.runs/$RUN_ID"
+PROFILE_ROOT="$ARTIFACT_ROOT/profiles"
+RESULT_ROOT="$ARTIFACT_ROOT/results"
+URL="$OPENFAAS_GATEWAY/function/$FUNCTION_NAME"
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+login_openfaas() {
+  if [[ -n "${OPENFAAS_PASSWORD:-}" ]]; then
+    printf "%s" "$OPENFAAS_PASSWORD" | faas-cli login --username "${OPENFAAS_USERNAME:-admin}" --password-stdin --gateway "$OPENFAAS_GATEWAY"
+    return
+  fi
+
+  if kubectl -n "$OPENFAAS_NAMESPACE" get secret basic-auth >/dev/null 2>&1; then
+    local password
+    password="$(kubectl -n "$OPENFAAS_NAMESPACE" get secret basic-auth -o jsonpath='{.data.basic-auth-password}' | base64 --decode)"
+    printf "%s" "$password" | faas-cli login --username admin --password-stdin --gateway "$OPENFAAS_GATEWAY"
+  else
+    echo "OpenFaaS basic-auth secret not found; assuming faas-cli is already logged in or auth is disabled."
+  fi
+}
+
+build_push_deploy() {
+  local tag="$1"
+  local pgo_profile="$2"
+  local label="$3"
+  local image="${IMAGE_PREFIX}:${tag}"
+
+  echo "== Build image $image =="
+  if [[ -n "$pgo_profile" ]]; then
+    docker build \
+      --build-arg "PGO_PROFILE=$pgo_profile" \
+      --build-arg "BUILD_LABEL=$label" \
+      --build-arg "OF_WATCHDOG_VERSION=$OF_WATCHDOG_VERSION" \
+      -t "$image" "$PROTO_DIR"
+  else
+    docker build \
+      --build-arg "BUILD_LABEL=$label" \
+      --build-arg "OF_WATCHDOG_VERSION=$OF_WATCHDOG_VERSION" \
+      -t "$image" "$PROTO_DIR"
+  fi
+
+  if [[ "$PUSH_IMAGE" == "1" ]]; then
+    echo "== Push image $image =="
+    docker push "$image"
+  fi
+  if [[ -n "$KIND_CLUSTER" ]]; then
+    echo "== Load image $image into kind cluster $KIND_CLUSTER =="
+    kind load docker-image "$image" --name "$KIND_CLUSTER"
+  fi
+
+  echo "== Deploy $FUNCTION_NAME with $label =="
+  export OPENFAAS_GATEWAY GO_PGO_IMAGE="$image" REDIS_ADDR REDIS_PASSWORD REDIS_DB REDIS_TIMEOUT PROFILE_KEY_PREFIX BUILD_LABEL="$label" GOMAXPROCS
+  faas-cli deploy -f "$PROTO_DIR/stack.yml" --gateway "$OPENFAAS_GATEWAY"
+  kubectl label "deployment/$FUNCTION_NAME" -n "$FUNCTION_NAMESPACE" \
+    com.openfaas.scale.min=1 \
+    com.openfaas.scale.max=1 \
+    com.openfaas.scale.zero=false \
+    --overwrite
+  kubectl scale "deployment/$FUNCTION_NAME" -n "$FUNCTION_NAMESPACE" --replicas=1
+  kubectl rollout status "deployment/$FUNCTION_NAME" -n "$FUNCTION_NAMESPACE" --timeout=240s
+}
+
+measure() {
+  local label="$1"
+  local out_prefix="$2"
+
+  python3 "$ROOT_DIR/scripts/http_invoke_latency.py" \
+    --url "$URL/work" \
+    --method POST \
+    --header "Content-Type: application/json" \
+    --body "{\"requests\":$HANDLER_REQUESTS}" \
+    --requests "$MEASURE_REQUESTS" \
+    --warmup "$MEASURE_WARMUP" \
+    --concurrency "$MEASURE_CONCURRENCY" \
+    --timeout 120 \
+    --label "$label" \
+    --csv "$RESULT_ROOT/${out_prefix}.csv" \
+    --summary "$RESULT_ROOT/${out_prefix}.json" \
+    --svg "$RESULT_ROOT/${out_prefix}.svg"
+}
+
+capture_profile() {
+  local iter="$1"
+  local raw_key="${PROFILE_KEY_PREFIX}:raw:${RUN_ID}:${iter}"
+  local dir="$PROFILE_ROOT/raw"
+  mkdir -p "$dir"
+
+  echo "== Capture warm profile $iter to Redis key $raw_key =="
+  curl -fsS "$URL/profile/capture?seconds=$PROFILE_SECONDS&key=$raw_key" > "$dir/capture-${iter}.json" &
+  local capture_pid=$!
+
+  sleep 1
+  python3 "$ROOT_DIR/scripts/http_invoke_latency.py" \
+    --url "$URL/work" \
+    --method POST \
+    --header "Content-Type: application/json" \
+    --body "{\"requests\":$HANDLER_REQUESTS}" \
+    --requests "$PROFILE_LOAD_REQUESTS" \
+    --warmup 0 \
+    --concurrency "$PROFILE_CONCURRENCY" \
+    --timeout 120 \
+    --label "profile-load-$iter" \
+    --csv "$dir/load-${iter}.csv" \
+    --summary "$dir/load-${iter}.json" \
+    --svg "$dir/load-${iter}.svg" >/dev/null
+
+  wait "$capture_pid"
+  curl -fsS "$URL/profile/fetch?key=$raw_key" -o "$dir/invoke-${iter}.pprof"
+}
+
+store_merged_profile() {
+  local profile="$1"
+  local key="$2"
+  curl -fsS -X POST --data-binary "@$profile" "$URL/profile/put?key=$key" > "$profile.store.json"
+}
+
+require_cmd docker
+require_cmd faas-cli
+require_cmd kubectl
+require_cmd curl
+require_cmd go
+require_cmd python3
+if [[ -n "$KIND_CLUSTER" ]]; then
+  require_cmd kind
+fi
+
+mkdir -p "$PROFILE_ROOT" "$RESULT_ROOT"
+
+if [[ "$INSTALL_REDIS" == "1" ]]; then
+  echo "== Install Redis profile cache in namespace $FUNCTION_NAMESPACE =="
+  kubectl apply -n "$FUNCTION_NAMESPACE" -f "$PROTO_DIR/k8s/redis.yaml"
+  kubectl rollout status deployment/profile-cache-redis -n "$FUNCTION_NAMESPACE" --timeout=180s
+fi
+
+login_openfaas
+
+build_push_deploy "${RUN_ID}-nopgo" "" "nopgo"
+
+echo "== Check Redis connectivity from function =="
+curl -fsS "$URL/profile/ping" | tee "$RESULT_ROOT/redis-ping.json"
+echo
+
+echo "== Measure baseline =="
+measure "go-openfaas-nopgo" "go-openfaas-nopgo"
+
+max_iter=0
+for iter_count in $PROFILE_ITERS; do
+  if (( iter_count > max_iter )); then
+    max_iter="$iter_count"
+  fi
+done
+
+echo "== Capture $max_iter warm profiles from baseline =="
+for iter in $(seq 1 "$max_iter"); do
+  capture_profile "$iter"
+done
+
+for iter_count in $PROFILE_ITERS; do
+  profile_dir="$PROFILE_ROOT/${iter_count}-profiles"
+  mkdir -p "$profile_dir"
+  for iter in $(seq 1 "$iter_count"); do
+    cp "$PROFILE_ROOT/raw/invoke-${iter}.pprof" "$profile_dir/"
+  done
+
+  echo "== Merge $iter_count Redis-backed profiles =="
+  go tool pprof -proto "$profile_dir"/invoke-*.pprof > "$profile_dir/merged.pprof"
+  merged_key="${PROFILE_KEY_PREFIX}:merged:${RUN_ID}:${iter_count}"
+  store_merged_profile "$profile_dir/merged.pprof" "$merged_key"
+
+  rel_profile=".runs/$RUN_ID/profiles/${iter_count}-profiles/merged.pprof"
+  build_push_deploy "${RUN_ID}-pgo-${iter_count}" "$rel_profile" "pgo-${iter_count}"
+
+  echo "== Measure PGO build from $iter_count warm profiles =="
+  measure "go-openfaas-pgo-${iter_count}" "go-openfaas-pgo-${iter_count}"
+done
+
+echo
+echo "Done."
+echo "  run:      $RUN_ID"
+echo "  results:  $RESULT_ROOT"
+echo "  profiles: $PROFILE_ROOT"
