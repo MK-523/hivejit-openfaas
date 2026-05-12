@@ -62,6 +62,9 @@ the same abstraction maps to different artifact types.
   - [docs/go-openfaas-redis-pgo-results.md](docs/go-openfaas-redis-pgo-results.md)
 - Added a C#/.NET OpenFaaS ReadyToRun packaging prototype:
   - [prototypes/dotnet-openfaas-readytorun](prototypes/dotnet-openfaas-readytorun)
+- Added a Python/domain-specific profile-specialization cache prototype:
+  - [prototypes/python-profile-specialization](prototypes/python-profile-specialization)
+  - [docs/python-profile-specialization-results.md](docs/python-profile-specialization-results.md)
 - Added the research map and benchmark plan in
   [docs/research-map.md](docs/research-map.md).
 - Added implementation notes for cache keys, heap traversal instrumentation,
@@ -123,6 +126,12 @@ Those benchmark aliases are Go-native workload shapes. The real DaCapo
 `lusearch`, `eclipse`, and `h2` programs are JVM benchmarks and should be used
 with the George/JVM path rather than as subprocesses for Go PGO.
 
+Run the Python profile-specialization cache across two DaCapo-shaped workloads:
+
+```bash
+bash prototypes/python-profile-specialization/run_profile_cache.sh
+```
+
 Run the C#/.NET ReadyToRun prototype when the .NET SDK is installed:
 
 ```bash
@@ -135,6 +144,7 @@ bash prototypes/dotnet-readytorun-pgo/run_readytorun.sh
 | --- | --- | --- |
 | JVM / HiveJIT | Execution -> MethodData export -> MethodData import -> eager JIT | Main research system; avoids whole heap traversal. |
 | Go PGO | Execution -> pprof export -> `go build -pgo` -> execution | Clean AOT version of the loop; implemented as a prototype. |
+| Python profile specialization | Execution -> route/query profile export -> generated specialization module -> execution | Domain-specific specialization path; latest run improves cold-process p50 on lusearch and h2. |
 | .NET PGO + ReadyToRun | Execution -> trace/MIBC -> ReadyToRun publish -> execution | Managed runtime comparison with JIT and AOT pieces; implemented as SDK/static-PGO scripts. |
 | Node/V8 | Execution -> V8 code cache export -> cachedData import -> execution | Runnable local prototype; useful serverless cold-start baseline. |
 | LLVM/Clang | Execution -> `.profraw` -> `.profdata` -> `-fprofile-use` -> execution | Strict AOT profile export/import loop; runnable local prototype. |

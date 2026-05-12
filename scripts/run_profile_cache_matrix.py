@@ -45,6 +45,12 @@ def domains() -> list[Domain]:
             description="Go pprof export and go build -pgo import.",
         ),
         Domain(
+            name="python-profile-specialization",
+            command=["bash", "prototypes/python-profile-specialization/run_profile_cache.sh"],
+            tools=["bash", "python3"],
+            description="Python route/query profile export and generated specialization artifact import.",
+        ),
+        Domain(
             name="dotnet-readytorun-pgo",
             command=["bash", "prototypes/dotnet-readytorun-pgo/run_readytorun.sh"],
             tools=["bash", "dotnet"],

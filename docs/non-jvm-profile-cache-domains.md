@@ -87,6 +87,29 @@ Why it is useful:
 - Dynamic PGO in modern .NET optimizes hot types and paths during tiered compilation.
 - Persistent static PGO exists historically in .NET Framework MPGO and internally around CoreCLR/crossgen2, but the stock modern SDK path is less clean than Go or LLVM. Treat .NET as a cold-start/AOT comparison first, and only pursue static profile import if the project can accept runtime-specific tooling.
 
+## 5. Python Domain-Specific Specialization
+
+Fit: exact for application-level runtime specialization.
+
+Loop:
+
+```text
+generic execution -> route/query profile JSON -> generated Python specialization module -> next cold execution
+```
+
+Why it is useful:
+
+- It fits the online-optimization taxonomy's code-specialization and domain-specific-specialization categories.
+- The artifact is imported by fresh Python processes, so the result is not a warm-start effect.
+- It is stock-Python and runnable locally, which makes it a reliable fallback when language-runtime JIT tooling is unavailable.
+
+Local prototype:
+
+```bash
+cd /Users/maheshk/Documents/New\ project\ 5
+bash prototypes/python-profile-specialization/run_profile_cache.sh
+```
+
 ## Reading Anchors
 
 - Go PGO: https://go.dev/doc/pgo
