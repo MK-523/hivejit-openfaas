@@ -1,0 +1,46 @@
+{
+  "benchmarks": {
+    "lusearch": {
+      "julia-baseline": {
+        "max_ms": 2795.4705,
+        "mean_ms": 15.533914664,
+        "min_ms": 3.714916,
+        "n": 2000,
+        "p50_ms": 4.67075,
+        "p50_saved_pct": 0.0,
+        "p95_ms": 8.591401449999998
+      },
+      "julia-sysimage10": {
+        "max_ms": 4180.7275,
+        "mean_ms": 15.799905457000001,
+        "min_ms": 3.632917,
+        "n": 2000,
+        "p50_ms": 4.701479,
+        "p50_saved_pct": -0.6579029063854842,
+        "p95_ms": 8.16036285
+      },
+      "julia-sysimage5": {
+        "max_ms": 5810.452,
+        "mean_ms": 23.9774394055,
+        "min_ms": 3.59025,
+        "n": 2000,
+        "p50_ms": 4.919354,
+        "p50_saved_pct": -5.322571321522245,
+        "p95_ms": 57.62023574999999
+      }
+    }
+  },
+  "metadata": {
+    "available_workloads": [
+      "lusearch"
+    ],
+    "data_kind": "real-openfaas-measurement",
+    "missing_real_workloads": [
+      "h2",
+      "eclipse"
+    ],
+    "note": "No emulation/smoke-test CSVs are included.",
+    "source_dir": "/Users/maheshk/Documents/New project 5/prototypes/julia-openfaas-redis-precompile/.runs/real-julia-lusearch-openwhisk-20260516/results"
+  },
+  "schema": "julia-aot-profile-cache-linegraphs.v1"
+}
