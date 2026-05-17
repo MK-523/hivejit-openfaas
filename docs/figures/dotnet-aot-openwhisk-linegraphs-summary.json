@@ -1,0 +1,45 @@
+{
+  "benchmarks": {
+    "serve-hot": {
+      "dotnet-il": {
+        "max_ms": 892.66175,
+        "mean_ms": 42.359751531,
+        "min_ms": 14.1565,
+        "n": 2000,
+        "p50_ms": 22.0769375,
+        "p50_saved_pct": 0.0,
+        "p95_ms": 161.95182325000002
+      },
+      "dotnet-nativeaot": {
+        "max_ms": 88.576292,
+        "mean_ms": 15.4882966165,
+        "min_ms": 13.873875,
+        "n": 2000,
+        "p50_ms": 14.8754585,
+        "p50_saved_pct": 32.61991841033204,
+        "p95_ms": 18.05171395
+      },
+      "dotnet-r2r": {
+        "max_ms": 222.555,
+        "mean_ms": 16.7710191335,
+        "min_ms": 14.084333,
+        "n": 2000,
+        "p50_ms": 15.579083,
+        "p50_saved_pct": 29.432771189391637,
+        "p95_ms": 20.2484899
+      }
+    }
+  },
+  "metadata": {
+    "available_scenarios": [
+      "serve-hot"
+    ],
+    "data_kind": "real-openfaas-measurement",
+    "missing_real_scenarios": [
+      "serve-mixed"
+    ],
+    "note": "No emulation/smoke-test CSVs are included.",
+    "source_dir": "/Users/maheshk/Documents/New project 5/prototypes/dotnet-openfaas-readytorun/.runs/real-dotnet-serve-hot-openwhisk-20260516/results"
+  },
+  "schema": "dotnet-aot-linegraphs.v1"
+}

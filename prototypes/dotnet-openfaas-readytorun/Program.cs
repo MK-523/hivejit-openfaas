@@ -1,18 +1,22 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("HANDLER_ADDR") ?? "http://0.0.0.0:8082");
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
     options.SerializerOptions.PropertyNameCaseInsensitive = true;
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 });
 
 var app = builder.Build();
-app.MapGet("/healthz", () => Results.Json(new { ok = true, build = BuildLabel() }));
+app.MapGet("/healthz", () => Results.Json(
+    new HealthResponse(true, BuildLabel()),
+    AppJsonSerializerContext.Default.HealthResponse));
 app.MapPost("/", (WorkRequest request) => RunWork(request));
 app.MapPost("/work", (WorkRequest request) => RunWork(request));
 app.MapGet("/", (HttpRequest request) => RunWork(WorkRequest.FromQuery(request)));
@@ -21,6 +25,7 @@ app.Run();
 
 static IResult RunWork(WorkRequest request)
 {
+    long requestInPod = RuntimeState.NextRequestNumber();
     string scenario = string.IsNullOrWhiteSpace(request.Scenario) ? "serve-hot" : request.Scenario;
     int invocations = request.Invocations.GetValueOrDefault(1);
     ulong iterations = request.Iterations ?? request.Requests ?? 250_000UL;
@@ -28,24 +33,31 @@ static IResult RunWork(WorkRequest request)
 
     if (invocations <= 0 || iterations == 0)
     {
-        return Results.BadRequest(new { error = "invocations and iterations must be positive" });
+        return Results.Json(
+            new ErrorResponse("invocations and iterations must be positive"),
+            AppJsonSerializerContext.Default.ErrorResponse,
+            statusCode: StatusCodes.Status400BadRequest);
     }
 
     Result result = Workload.Run(scenario, invocations, iterations, seed);
-    return Results.Json(new
-    {
-        scenario = result.Scenario,
-        invocations = result.Invocations,
-        iterationsPerInvoke = result.IterationsPerInvoke,
-        elapsedMs = result.ElapsedMs,
-        p50Ms = result.InvocationP50Ms,
-        p95Ms = result.InvocationP95Ms,
-        checksum = result.Checksum.ToString("x16"),
-        runtime = result.Runtime,
-        osArchitecture = result.OSArchitecture,
-        build = BuildLabel(),
-        hostname = Environment.MachineName,
-    });
+    return Results.Json(
+        new WorkResponse(
+            result.Scenario,
+            result.Invocations,
+            result.IterationsPerInvoke,
+            result.ElapsedMs,
+            result.InvocationP50Ms,
+            result.InvocationP95Ms,
+            result.Checksum.ToString("x16"),
+            result.Runtime,
+            result.OSArchitecture,
+            BuildLabel(),
+            Environment.MachineName,
+            Environment.GetEnvironmentVariable("POD_UID") ?? Environment.MachineName,
+            RuntimeState.ProcessUptimeMs(),
+            requestInPod,
+            Environment.ProcessId),
+        AppJsonSerializerContext.Default.WorkResponse);
 }
 
 static string BuildLabel()
@@ -79,6 +91,50 @@ sealed record WorkRequest(string? Scenario, int? Invocations, ulong? Iterations,
     private static ulong? TryUlong(IQueryCollection query, string key)
     {
         return query.TryGetValue(key, out var value) && ulong.TryParse(value, out ulong parsed) ? parsed : null;
+    }
+}
+
+sealed record HealthResponse(bool Ok, string Build);
+
+sealed record ErrorResponse(string Error);
+
+sealed record WorkResponse(
+    string Scenario,
+    int Invocations,
+    ulong IterationsPerInvoke,
+    double ElapsedMs,
+    double P50Ms,
+    double P95Ms,
+    string Checksum,
+    string Runtime,
+    string OSArchitecture,
+    string Build,
+    string Hostname,
+    string PodUid,
+    double ProcessUptimeMs,
+    long RequestInPod,
+    int ProcessId);
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(WorkRequest))]
+[JsonSerializable(typeof(HealthResponse))]
+[JsonSerializable(typeof(ErrorResponse))]
+[JsonSerializable(typeof(WorkResponse))]
+internal sealed partial class AppJsonSerializerContext : JsonSerializerContext;
+
+static class RuntimeState
+{
+    private static readonly Stopwatch Uptime = Stopwatch.StartNew();
+    private static long RequestCount;
+
+    public static long NextRequestNumber()
+    {
+        return Interlocked.Increment(ref RequestCount);
+    }
+
+    public static double ProcessUptimeMs()
+    {
+        return Uptime.Elapsed.TotalMilliseconds;
     }
 }
 
