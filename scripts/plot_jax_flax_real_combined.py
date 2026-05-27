@@ -47,16 +47,6 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
     if len(baseline) < 10 or len(cache) < 10:
         raise ValueError(f"expected 10 rows for {scenario} in {results_dir}")
 
-    base_first = baseline[0]
-    cache_first = cache[0]
-    phases = [
-        ("Trace/lower", "lower_ms", "#7ec8ff"),
-        ("Compile/load", "compile_or_load_ms", "#ffb86b"),
-        ("Execute", "first_execute_ms", "#90e0a6"),
-    ]
-    base_total = sum(base_first[field] for _label, field, _color in phases)
-    cache_total = sum(cache_first[field] for _label, field, _color in phases)
-
     plt.rcParams.update(
         {
             "font.family": "DejaVu Sans",
@@ -72,12 +62,10 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
         }
     )
 
-    fig = plt.figure(figsize=(17.2, 7.2), dpi=180)
-    outer = fig.add_gridspec(1, 2, width_ratios=[1.62, 1.0], wspace=0.20)
+    fig = plt.figure(figsize=(15.8, 6.7), dpi=180)
+    outer = fig.add_gridspec(1, 2, width_ratios=[1.72, 0.78], wspace=0.22)
     line_ax = fig.add_subplot(outer[0, 0])
-    right = outer[0, 1].subgridspec(2, 1, height_ratios=[1.0, 1.08], hspace=0.38)
-    cmp_ax = fig.add_subplot(right[0, 0])
-    phase_ax = fig.add_subplot(right[1, 0])
+    cmp_ax = fig.add_subplot(outer[0, 1])
 
     x = list(range(1, 11))
     line_ax.plot(
@@ -145,47 +133,6 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
     cmp_ax.set_ylim(0, max(base_vals + cache_vals) * 1.35)
     cmp_ax.grid(True, axis="y", linewidth=0.8)
     cmp_ax.legend(loc="upper right", frameon=True, facecolor="#0a2a50", edgecolor="#3b76ad", labelcolor="#edf6ff", fontsize=8.8)
-
-    positions = [0, 1]
-    labels = ["Baseline\n(no cache)", "Cache hit\n(persistent)"]
-    rows = [base_first, cache_first]
-    totals = [base_total, cache_total]
-    min_visible_ms = 18.0
-    bottoms = [0.0, 0.0]
-    for phase_label, field, color in phases:
-        actual = [row[field] for row in rows]
-        shown = [value if value >= min_visible_ms else min_visible_ms for value in actual]
-        phase_ax.bar(
-            positions,
-            shown,
-            bottom=bottoms,
-            width=0.58,
-            color=color,
-            edgecolor="#082344",
-            linewidth=1.2,
-            label=phase_label,
-        )
-        for pos, bottom, actual_value, shown_value in zip(positions, bottoms, actual, shown):
-            label = f"{actual_value:.1f}" if actual_value < 10 else f"{actual_value:.0f}"
-            phase_ax.text(
-                pos,
-                bottom + shown_value / 2,
-                label,
-                ha="center",
-                va="center",
-                fontsize=8.8,
-                color="#061427",
-                fontweight="bold",
-            )
-        bottoms = [bottom + value for bottom, value in zip(bottoms, shown)]
-    for pos, total, shown_total in zip(positions, totals, bottoms):
-        phase_ax.text(pos, shown_total + max(bottoms) * 0.035, f"{total:.0f}ms", ha="center", va="bottom", fontsize=10.5, fontweight="bold")
-    phase_ax.set_title("Iteration 1 Phase Breakdown", fontsize=13, pad=10)
-    phase_ax.set_ylabel("ms")
-    phase_ax.set_xticks(positions, labels)
-    phase_ax.set_ylim(0, max(bottoms) * 1.30)
-    phase_ax.grid(True, axis="y", linewidth=0.8)
-    phase_ax.legend(loc="upper right", frameon=True, facecolor="#0a2a50", edgecolor="#3b76ad", labelcolor="#edf6ff", fontsize=8.5)
 
     fig.suptitle("Real Flax/MNIST JAX Persistent Compilation Cache", fontsize=17, y=0.98)
     fig.text(

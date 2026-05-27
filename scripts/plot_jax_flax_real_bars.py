@@ -39,11 +39,6 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
     if not baseline or not cache:
         raise ValueError(f"missing rows for {scenario} in {results_dir}")
 
-    base_first = baseline[0]
-    cache_first = cache[0]
-    base_first_total = base_first["lower_ms"] + base_first["compile_or_load_ms"] + base_first["first_execute_ms"]
-    cache_first_total = cache_first["lower_ms"] + cache_first["compile_or_load_ms"] + cache_first["first_execute_ms"]
-
     categories = [
         ("First request\np50", "startup_plus_first_request_ms"),
         ("Trace/lower\np50", "lower_ms"),
@@ -68,10 +63,8 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
         }
     )
 
-    fig = plt.figure(figsize=(15.4, 6.4), dpi=180)
-    gs = fig.add_gridspec(1, 2, width_ratios=[1.35, 1.0], wspace=0.24)
-    cmp_ax = fig.add_subplot(gs[0, 0])
-    phase_ax = fig.add_subplot(gs[0, 1])
+    fig = plt.figure(figsize=(11.8, 6.2), dpi=180)
+    cmp_ax = fig.add_subplot(111)
 
     x = list(range(len(categories)))
     width = 0.34
@@ -104,62 +97,6 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
         fontsize=10,
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "#0a2a50", "edgecolor": "#3b76ad", "alpha": 0.95},
     )
-
-    phases = [
-        ("Trace/lower", "lower_ms", "#7ec8ff"),
-        ("Compile/load", "compile_or_load_ms", "#ffb86b"),
-        ("Execute", "first_execute_ms", "#90e0a6"),
-    ]
-    positions = [0, 1]
-    labels = ["Baseline\n(no cache)", "Cache hit\n(persistent)"]
-    rows = [base_first, cache_first]
-    totals = [base_first_total, cache_first_total]
-    min_visible_ms = 18.0
-    bottoms = [0.0, 0.0]
-    for phase_label, field, color in phases:
-        actual_values = [row[field] for row in rows]
-        display_values = [value if value >= min_visible_ms else min_visible_ms for value in actual_values]
-        phase_ax.bar(
-            positions,
-            display_values,
-            bottom=bottoms,
-            width=0.58,
-            color=color,
-            edgecolor="#082344",
-            linewidth=1.2,
-            label=phase_label,
-        )
-        for pos, bottom, actual, shown in zip(positions, bottoms, actual_values, display_values):
-            label = f"{actual:.1f}" if actual < 10 else f"{actual:.0f}"
-            phase_ax.text(
-                pos,
-                bottom + shown / 2,
-                label,
-                ha="center",
-                va="center",
-                fontsize=9.2,
-                color="#061427",
-                fontweight="bold",
-            )
-        bottoms = [bottom + shown for bottom, shown in zip(bottoms, display_values)]
-
-    for pos, total, shown_total in zip(positions, totals, bottoms):
-        phase_ax.text(
-            pos,
-            shown_total + max(bottoms) * 0.035,
-            f"{total:.0f}ms",
-            ha="center",
-            va="bottom",
-            fontsize=11,
-            fontweight="bold",
-        )
-
-    phase_ax.set_title("Iteration 1 Phase Breakdown", fontsize=14, pad=14)
-    phase_ax.set_ylabel("Milliseconds")
-    phase_ax.set_xticks(positions, labels)
-    phase_ax.set_ylim(0, max(bottoms) * 1.25)
-    phase_ax.grid(True, axis="y", linewidth=0.8)
-    phase_ax.legend(loc="upper right", frameon=True, facecolor="#0a2a50", edgecolor="#3b76ad", labelcolor="#edf6ff")
 
     fig.suptitle("Real Flax/MNIST Persistent Compilation Cache Results", fontsize=16, y=0.98)
     fig.text(

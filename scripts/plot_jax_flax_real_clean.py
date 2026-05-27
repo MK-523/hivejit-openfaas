@@ -48,11 +48,6 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
     baseline_curve = warm_curve(baseline)
     cache_curve = warm_curve(cache)
 
-    base_first = baseline[0]
-    cache_first = cache[0]
-    base_total = base_first["lower_ms"] + base_first["compile_or_load_ms"] + base_first["first_execute_ms"]
-    cache_total = cache_first["lower_ms"] + cache_first["compile_or_load_ms"] + cache_first["first_execute_ms"]
-
     baseline_p50 = statistics.median(row["startup_plus_first_request_ms"] for row in baseline)
     cache_p50 = statistics.median(row["startup_plus_first_request_ms"] for row in cache)
     compile_p50 = statistics.median(row["compile_or_load_ms"] for row in baseline)
@@ -76,7 +71,7 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
     fig = plt.figure(figsize=(15.2, 6.5), dpi=180)
     gs = fig.add_gridspec(1, 2, width_ratios=[2.25, 1.0], wspace=0.25)
     ax = fig.add_subplot(gs[0, 0])
-    phase_ax = fig.add_subplot(gs[0, 1])
+    cmp_ax = fig.add_subplot(gs[0, 1])
 
     ax.plot(
         x,
@@ -120,50 +115,28 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
         bbox={"boxstyle": "round,pad=0.4", "facecolor": "#0a2a50", "edgecolor": "#3b76ad", "alpha": 0.95},
     )
 
-    phases = [
-        ("Trace/lower", "lower_ms", "#7ec8ff"),
-        ("Compile/load", "compile_or_load_ms", "#ffb86b"),
-        ("Execute", "first_execute_ms", "#90e0a6"),
+    cmp_categories = [
+        ("First\nrequest", "startup_plus_first_request_ms"),
+        ("Compile\nload", "compile_or_load_ms"),
+        ("Execute", "first_execute_ms"),
     ]
-    labels = ["Baseline\n(no cache)", "Cache hit\n(persistent)"]
-    rows = [base_first, cache_first]
-    totals = [base_total, cache_total]
-    positions = [0, 1]
-    min_visible_ms = 18.0
-    bottoms = [0.0, 0.0]
-    for phase_label, key, color in phases:
-        values = [row[key] for row in rows]
-        display_values = [value if value >= min_visible_ms else min_visible_ms for value in values]
-        phase_ax.bar(
-            positions,
-            display_values,
-            bottom=bottoms,
-            width=0.58,
-            color=color,
-            edgecolor="#082344",
-            linewidth=1.2,
-            label=phase_label,
-        )
-        for pos, bottom, actual, shown in zip(positions, bottoms, values, display_values):
-            label = f"{actual:.1f}" if actual < 10 else f"{actual:.0f}"
-            phase_ax.text(
-                pos,
-                bottom + shown / 2,
-                label,
-                ha="center",
-                va="center",
-                fontsize=9.2,
-                color="#061427",
-                fontweight="bold",
-            )
-        bottoms = [bottom + value for bottom, value in zip(bottoms, display_values)]
-
-    phase_ax.set_title("Iteration 1 Phase Breakdown", fontsize=13, pad=14)
-    phase_ax.set_ylabel("Milliseconds")
-    phase_ax.set_xticks(positions, labels)
-    phase_ax.set_ylim(0, max(bottoms) * 1.25)
-    phase_ax.grid(True, axis="y", linewidth=0.8)
-    phase_ax.legend(
+    positions = list(range(len(cmp_categories)))
+    width = 0.34
+    baseline_values = [statistics.median(row[field] for row in baseline) for _label, field in cmp_categories]
+    cache_values = [statistics.median(row[field] for row in cache) for _label, field in cmp_categories]
+    cmp_ax.bar([pos - width / 2 for pos in positions], baseline_values, width=width, color="#7ec8ff", label="Baseline")
+    cmp_ax.bar([pos + width / 2 for pos in positions], cache_values, width=width, color="#ffb86b", label="Cache hit")
+    for pos, value in zip(positions, baseline_values):
+        cmp_ax.text(pos - width / 2, value + 11, f"{value:.0f}", ha="center", va="bottom", fontsize=9.2, fontweight="bold")
+    for pos, value in zip(positions, cache_values):
+        label = f"{value:.1f}" if value < 10 else f"{value:.0f}"
+        cmp_ax.text(pos + width / 2, value + 11, label, ha="center", va="bottom", fontsize=9.2, fontweight="bold")
+    cmp_ax.set_title("p50 Component Bars", fontsize=13, pad=14)
+    cmp_ax.set_ylabel("Milliseconds")
+    cmp_ax.set_xticks(positions, [label for label, _field in cmp_categories])
+    cmp_ax.set_ylim(0, max(baseline_values + cache_values) * 1.35)
+    cmp_ax.grid(True, axis="y", linewidth=0.8)
+    cmp_ax.legend(
         loc="upper right",
         frameon=True,
         facecolor="#0a2a50",
@@ -171,17 +144,7 @@ def render(results_dir: Path, scenario: str, out: Path) -> None:
         labelcolor="#edf6ff",
         fontsize=8.8,
     )
-    for pos, total, shown_total in zip(positions, totals, bottoms):
-        phase_ax.text(
-            pos,
-            shown_total + max(bottoms) * 0.035,
-            f"{total:.0f}ms",
-            ha="center",
-            va="bottom",
-            fontsize=11,
-            fontweight="bold",
-        )
-    phase_ax.set_facecolor("#082344")
+    cmp_ax.set_facecolor("#082344")
 
     fig.text(
         0.5,
