@@ -1,0 +1,25 @@
+{
+  "schema": "jax-real-workload-profile.v1",
+  "domain": "JAX/XLA real workload",
+  "workload": "JAX scientific and Flax model cache workloads",
+  "pattern": "scenario/config profile -> JAX trace -> StableHLO/XLA executable -> persistent compilation cache -> fresh-process reuse",
+  "scenarios": [
+    {
+      "workloadKind": "flax_mnist_cnn_train",
+      "mesh": 28,
+      "channels": 1,
+      "batch": 128,
+      "vocabSize": 10,
+      "mlpDim": 256,
+      "timesteps": 1,
+      "solverIters": 2,
+      "modelDepth": 2,
+      "controllerMode": "mnist-cnn-train-step",
+      "useSurrogate": false,
+      "dtype": "float32",
+      "name": "flax-mnist-cnn-train-real",
+      "scenarioHash": "1efff3e9c7fee6a9"
+    }
+  ],
+  "profileHash": "de5376768470c7e6"
+}

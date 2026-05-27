@@ -1,0 +1,77 @@
+{
+  "schema": "jax-real-workload-cache-summary.v1",
+  "labels": {
+    "baseline": {
+      "flax-mnist-cnn-train-real": {
+        "trials": 10,
+        "traceMsMedian": 0.0,
+        "lowerMsMedian": 42.359583,
+        "compileOrLoadMsMedian": 225.72143749999998,
+        "firstExecuteMsMedian": 69.226083,
+        "handlerMsMedian": 337.30710350000004,
+        "startupPlusFirstRequestMsMedian": 337.30710350000004,
+        "artifactImportMsMedian": 0.0,
+        "artifactExportMsMedian": 0.0,
+        "cacheFilesLast": 0,
+        "cacheBytesLast": 0,
+        "archiveBytesLast": 0
+      }
+    },
+    "persistent-cache-populate": {
+      "flax-mnist-cnn-train-real": {
+        "trials": 1,
+        "traceMsMedian": 0.0,
+        "lowerMsMedian": 38.378917,
+        "compileOrLoadMsMedian": 197.229666,
+        "firstExecuteMsMedian": 62.58775,
+        "handlerMsMedian": 298.196333,
+        "startupPlusFirstRequestMsMedian": 298.196333,
+        "artifactImportMsMedian": 0.0,
+        "artifactExportMsMedian": 0.0,
+        "cacheFilesLast": 42,
+        "cacheBytesLast": 245365,
+        "archiveBytesLast": 0
+      }
+    },
+    "persistent-cache-reuse": {
+      "flax-mnist-cnn-train-real": {
+        "trials": 10,
+        "traceMsMedian": 0.0,
+        "lowerMsMedian": 40.470146,
+        "compileOrLoadMsMedian": 7.144771,
+        "firstExecuteMsMedian": 66.7004165,
+        "handlerMsMedian": 114.614125,
+        "startupPlusFirstRequestMsMedian": 124.6970625,
+        "artifactImportMsMedian": 9.3188955,
+        "artifactExportMsMedian": 0.0,
+        "cacheFilesLast": 42,
+        "cacheBytesLast": 245365,
+        "archiveBytesLast": 250166
+      }
+    },
+    "mismatch-control": {
+      "flax-mnist-cnn-train-real-mismatch": {
+        "trials": 10,
+        "traceMsMedian": 0.0,
+        "lowerMsMedian": 41.041229,
+        "compileOrLoadMsMedian": 215.740938,
+        "firstExecuteMsMedian": 83.444562,
+        "handlerMsMedian": 340.01379199999997,
+        "startupPlusFirstRequestMsMedian": 348.239667,
+        "artifactImportMsMedian": 8.496833,
+        "artifactExportMsMedian": 0.0,
+        "cacheFilesLast": 59,
+        "cacheBytesLast": 314535,
+        "archiveBytesLast": 250166
+      }
+    }
+  },
+  "comparisons": {
+    "flax-mnist-cnn-train-real": {
+      "compileLoadSpeedup": 31.5925363458115,
+      "compileLoadMsSaved": 218.5766665,
+      "firstRequestSpeedup": 2.7050124256134747,
+      "firstRequestMsSaved": 212.61004100000002
+    }
+  }
+}

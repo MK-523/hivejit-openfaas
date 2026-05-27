@@ -1,0 +1,10 @@
+{
+  "imported": true,
+  "key": "jax-real-workload-cache:de5376768470c7e6",
+  "archive": "artifacts/flax-mnist-real-10trial/object-store/jax-real-workload-cache_de5376768470c7e6.tar.gz",
+  "import_ms": 9.314165999967372,
+  "cache_files": 42,
+  "cache_bytes": 245365,
+  "archive_bytes": 250166,
+  "status": "ok"
+}
