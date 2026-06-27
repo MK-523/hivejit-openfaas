@@ -1,5 +1,6 @@
 .env
 .colima/
+work/openfaas-setup/
 work/jdk25u/
 work/george-jdk/
 generated/fn/george-jdk/
