@@ -1,219 +1,102 @@
 # Profile Artifact Cache for Serverless
 
-This repo is a research/prototype workspace for a serverless optimization idea:
+Research prototypes for testing whether a short-lived serverless worker can reuse compact optimization artifacts instead of relearning the same runtime behavior after every cold start.
+
+The common loop is:
 
 ```text
-Execution -> profile/artifact export -> profile/artifact import -> faster future execution
+representative execution
+        -> export profile or compilation artifact
+        -> store and version artifact
+        -> import artifact into a fresh build or worker
+        -> measure startup and warmup behavior
 ```
 
-The shared-chat framing is that this generalizes the HiveJIT idea. Short-lived
-serverless workers repeatedly lose runtime state that was expensive to learn:
-hot methods, type feedback, branch frequencies, parse/compile artifacts, and
-other optimizer inputs. Instead of snapshotting a whole heap, the system should
-cache compact profile artifacts that a fresh worker can reuse.
+This repository explores that loop across managed runtimes, ahead-of-time profile-guided optimization, and domain-specific compilation caches. It is an experimental workspace, not a production caching service.
 
-## What We Are Building
+## Research question
 
-Working name: **ProfileCache-FaaS**.
+Short-lived functions discard information that was expensive to learn, including hot methods, branch frequencies, type feedback, compiled code, and workload-specific shapes. The project asks whether a smaller, versioned artifact can preserve some of that information across worker or pod churn without snapshotting an entire process heap.
 
-The goal is a serverless control loop:
+A cache key would need to account for at least the code version, runtime/compiler version, architecture, and workload profile. Evaluation must include the cost of exporting, storing, importing, and validating an artifact—not only the speed of the optimized execution.
 
-1. Run a function normally.
-2. Export a small optimizer artifact after representative execution.
-3. Store and version the artifact by code hash, runtime version, architecture,
-   and workload profile.
-4. Start a future fresh worker with that artifact.
-5. Measure whether the future worker reaches near-hot performance sooner.
+## Implemented experiments
 
-For JVM/HiveJIT, the artifact is HotSpot JIT profile state such as MethodData,
-type profiles, counters, and tiered compilation metadata. For non-JVM systems,
-the same abstraction maps to different artifact types.
+| Area | Repository path | What it exercises |
+|---|---|---|
+| Node/V8 | [`prototypes/node-v8-artifact-cache`](prototypes/node-v8-artifact-cache) | V8 code-cache export and reuse |
+| LLVM/Clang | [`prototypes/llvm-aot-pgo`](prototypes/llvm-aot-pgo) | `.profraw` → `.profdata` → profile-guided rebuild |
+| Go PGO | [`prototypes/go-pgo-serverless`](prototypes/go-pgo-serverless) | `pprof` capture and `go build -pgo` |
+| Go + OpenFaaS + Redis | [`prototypes/go-openfaas-redis-pgo`](prototypes/go-openfaas-redis-pgo) | Profile capture, Redis storage, PGO rebuild, redeployment, and HTTP measurement |
+| Python specialization | [`prototypes/python-profile-specialization`](prototypes/python-profile-specialization) | Generated specialization modules from observed route/query profiles |
+| JAX/XLA | [`prototypes/jax-xla-runtime-specialization`](prototypes/jax-xla-runtime-specialization) | Runtime signatures and JAX's persistent compilation cache |
+| JAX + OpenFaaS + Redis | [`prototypes/jax-openfaas-redis-xla`](prototypes/jax-openfaas-redis-xla) | Baseline-versus-cache serverless cold-start experiments |
+| JVM/DaCapo | [`prototypes/jvm-openfaas-dacapo`](prototypes/jvm-openfaas-dacapo) | Pod churn and warmup resets for real JVM DaCapo workloads |
+| Julia | [`prototypes/julia-openfaas-redis-precompile`](prototypes/julia-openfaas-redis-precompile) | `--trace-compile` artifacts stored through Redis |
+| .NET | [`prototypes/dotnet-readytorun-pgo`](prototypes/dotnet-readytorun-pgo) | ReadyToRun and static-PGO build paths |
 
-## Progress In This Workspace
+The [`scripts`](scripts) directory contains matrix runners, HTTP latency collection, plotting, and export-overhead analysis. Design and experiment notes live in [`docs`](docs).
 
-- Extracted the shared-chat conclusion: the strongest research framing is
-  profile-artifact caching for serverless, not whole-process heap snapshotting.
-- Identified Go PGO and .NET PGO/ReadyToRun as the clean second and third
-  non-JVM domains from the chat.
-- Checked the local toolchain. Go is now available locally; .NET was restored
-  for the latest run under `/private/tmp/dotnet-sdk`. Node 24 and Apple Clang
-  are also installed.
-- Added two runnable prototypes that fit the local environment:
-  - [Node/V8 artifact cache](prototypes/node-v8-artifact-cache/README.md)
-  - [LLVM AOT PGO loop](prototypes/llvm-aot-pgo/README.md)
-- Added source-complete prototypes for the requested second and third non-JVM
-  domains:
-  - [Go PGO serverless loop](prototypes/go-pgo-serverless/README.md)
-  - [C#/.NET ReadyToRun + static PGO loop](prototypes/dotnet-readytorun-pgo/README.md)
-- Added a matrix runner that executes every available domain and skips missing
-  SDKs:
-  - [scripts/run_profile_cache_matrix.py](scripts/run_profile_cache_matrix.py)
-- Added a JVM/HiveJIT export-overhead analyzer for future instrumentation logs:
-  - [scripts/analyze_export_overhead.py](scripts/analyze_export_overhead.py)
-- Added an HTTP invocation benchmark and SVG graph generator for deployed
-  serverless functions:
-  - [scripts/http_invoke_latency.py](scripts/http_invoke_latency.py)
-  - [docs/serverless-http-benchmark.md](docs/serverless-http-benchmark.md)
-- Added JVM vs Go/.NET runtime comparison graphs:
-  - [scripts/plot_runtime_comparison.py](scripts/plot_runtime_comparison.py)
-  - [docs/runtime-comparison.md](docs/runtime-comparison.md)
-- Ran the Go/OpenFaaS Redis-backed profile-cache experiment:
-  - [prototypes/go-openfaas-redis-pgo](prototypes/go-openfaas-redis-pgo)
-  - [docs/go-openfaas-redis-pgo-results.md](docs/go-openfaas-redis-pgo-results.md)
-- Added a C#/.NET OpenFaaS ReadyToRun packaging prototype:
-  - [prototypes/dotnet-openfaas-readytorun](prototypes/dotnet-openfaas-readytorun)
-- Added a Python/domain-specific profile-specialization cache prototype:
-  - [prototypes/python-profile-specialization](prototypes/python-profile-specialization)
-  - [docs/python-profile-specialization-results.md](docs/python-profile-specialization-results.md)
-- Added a JAX/XLA runtime-signature specialization and persistent compilation
-  cache prototype:
-  - [prototypes/jax-xla-runtime-specialization](prototypes/jax-xla-runtime-specialization)
-  - [docs/jax-xla-runtime-specialization-results.md](docs/jax-xla-runtime-specialization-results.md)
-- Added an OpenFaaS/Redis version of the JAX/XLA persistent-cache experiment for
-  baseline-vs-cache cold-start measurements:
-  - [prototypes/jax-openfaas-redis-xla](prototypes/jax-openfaas-redis-xla)
-  - [docs/jax-openfaas-redis-xla-results.md](docs/jax-openfaas-redis-xla-results.md)
-- Added the research map and benchmark plan in
-  [docs/research-map.md](docs/research-map.md).
-- Added implementation notes for cache keys, heap traversal instrumentation,
-  function creation overhead, and benchmark selection in
-  [docs/serverless-profile-cache-design.md](docs/serverless-profile-cache-design.md).
-- Added a JVM/DaCapo OpenFaaS churn harness that runs real `h2`, `lusearch`,
-  and `eclipse` in one long-lived JVM process and plots pod-restart warmup
-  resets:
-  - [prototypes/jvm-openfaas-dacapo](prototypes/jvm-openfaas-dacapo)
-- Added a Julia/OpenFaaS/Redis precompile-cache experiment that demonstrates
-  the same warmup graph shape as the JVM but using Julia's LLVM JIT and
-  `--trace-compile` precompile artifacts stored in Redis:
-  - [prototypes/julia-openfaas-redis-precompile](prototypes/julia-openfaas-redis-precompile)
+## Representative measured run
 
-## Quick Start
+One local `kind`/OpenFaaS experiment compared a Go baseline with PGO builds trained from five and ten warm-profile captures. Each build received 80 measured requests.
 
-Run the V8 cached artifact prototype:
+| Build | Mean | p50 | p95 |
+|---|---:|---:|---:|
+| No PGO | 109.1 ms | 104.0 ms | 130.0 ms |
+| PGO, 5 profiles | 103.7 ms | 102.9 ms | 107.4 ms |
+| PGO, 10 profiles | 102.8 ms | 102.7 ms | 105.0 ms |
+
+The ten-profile build reduced p95 from 130.0 ms to 105.0 ms in that run. This is a workload- and environment-specific observation, not a general performance claim. The environment, raw-artifact locations, plots, and smaller smoke-test caveats are recorded in [`docs/go-openfaas-redis-pgo-results.md`](docs/go-openfaas-redis-pgo-results.md).
+
+## Verified entry points
+
+Run the local V8 cache experiment:
 
 ```bash
 node prototypes/node-v8-artifact-cache/bench.js --runs 8
 ```
 
-Run the native AOT PGO prototype:
+Run the LLVM AOT-PGO loop:
 
 ```bash
 bash prototypes/llvm-aot-pgo/run_pgo.sh
 ```
 
-Run every available prototype as a serverless profile-cache matrix:
+Run every prototype supported by the installed local toolchain:
 
 ```bash
 python3 scripts/run_profile_cache_matrix.py
 ```
 
-Benchmark a deployed serverless HTTP endpoint and produce a latency graph:
+OpenFaaS, Redis, JVM, Go, JAX, Julia, and .NET experiments have additional environment requirements documented beside their respective prototypes.
 
-```bash
-python3 scripts/http_invoke_latency.py --url http://127.0.0.1:8080/function/profilecache --requests 100
-```
+## Evaluation principles
 
-Generate JVM/OpenFaaS vs Go/.NET comparison graphs after running the prototypes:
+Report more than steady-state throughput. A useful study should capture:
 
-```bash
-python3 scripts/plot_runtime_comparison.py
-```
+- cold-start and first-request latency;
+- per-invocation warmup curves and time-to-hot;
+- p50, p95, and p99 latency;
+- compilation and deoptimization events where available;
+- artifact size, export/import cost, and cache lookup cost;
+- behavior under version mismatches and workload drift.
 
-Rank export overhead buckets once HiveJIT emits CSV or JSONL timing logs:
+## Limitations
 
-```bash
-python3 scripts/analyze_export_overhead.py export-timings.jsonl
-```
+- The repository contains multiple independent prototypes with different maturity levels; it is not one integrated production system.
+- Some paths require SDKs or infrastructure that the matrix runner may skip when unavailable.
+- The Go “DaCapo-shaped” aliases are Go-native workload shapes, not the real JVM DaCapo programs. The JVM harness is the path for real DaCapo workloads.
+- PGO rebuild experiments demonstrate profile reuse through a new binary; they are not equivalent to injecting live JIT state into an already-created worker.
+- The JVM/HiveJIT export-overhead analyzer requires instrumentation logs that are not produced by the analyzer itself.
+- Published measurements should always name the hardware, runtime versions, workload, warmup policy, request count, and run count.
 
-Run the Go PGO prototype when Go is installed:
+## Background sources
 
-```bash
-bash prototypes/go-pgo-serverless/run_pgo.sh
-```
+- [Go profile-guided optimization](https://go.dev/doc/pgo)
+- [Node `vm.Script` cached data](https://nodejs.org/api/vm.html#scriptcreatecacheddata)
+- [LLVM `llvm-profdata`](https://llvm.org/docs/CommandGuide/llvm-profdata.html)
+- [JAX persistent compilation cache](https://docs.jax.dev/en/latest/persistent_compilation_cache.html)
+- [DaCapo benchmark suite](https://www.dacapobench.org/)
+- [Virtual-machine warmup study](https://doi.org/10.1145/3133876)
 
-Run the Go profile-cache demo across the DaCapo-shaped Go workloads:
-
-```bash
-cd prototypes/go-pgo-cache-demo
-BENCHMARKS="dacapo-lusearch dacapo-eclipse dacapo-h2" PROFILE_ITERS="3 5" ./run_profile_cache.sh
-```
-
-Those benchmark aliases are Go-native workload shapes. The real DaCapo
-`lusearch`, `eclipse`, and `h2` programs are JVM benchmarks and should be used
-with the George/JVM path rather than as subprocesses for Go PGO.
-
-Run the Python profile-specialization cache across two DaCapo-shaped workloads:
-
-```bash
-bash prototypes/python-profile-specialization/run_profile_cache.sh
-```
-
-Run the JAX/XLA runtime-signature specialization prototype:
-
-```bash
-bash prototypes/jax-xla-runtime-specialization/run_jax_xla.sh
-```
-
-Run the JAX/XLA OpenFaaS Redis cold-start experiment when OpenFaaS is installed:
-
-```bash
-bash scripts/07_run_jax_openfaas_redis_xla.sh
-```
-
-Run real DaCapo `h2`, `lusearch`, and `eclipse` on OpenFaaS with scripted pod
-churn:
-
-```bash
-bash scripts/08_run_jvm_openfaas_dacapo_churn.sh
-```
-
-Run the Julia precompile-cache experiment (DaCapo-analog workloads, same warmup
-graph style, different language/compiler):
-
-```bash
-bash scripts/09_run_julia_openfaas_redis_precompile.sh
-```
-
-Run the C#/.NET ReadyToRun prototype when the .NET SDK is installed:
-
-```bash
-bash prototypes/dotnet-readytorun-pgo/run_readytorun.sh
-```
-
-## Current Domain Choices
-
-| Domain | Pattern | Why it matters |
-| --- | --- | --- |
-| JVM / HiveJIT | Execution -> MethodData export -> MethodData import -> eager JIT | Main research system; avoids whole heap traversal. |
-| Go PGO | Execution -> pprof export -> `go build -pgo` -> execution | Clean AOT version of the loop; implemented as a prototype. |
-| Python profile specialization | Execution -> route/query profile export -> generated specialization module -> execution | Domain-specific specialization path; latest run improves cold-process p50 on lusearch and h2. |
-| JAX/XLA | Execution -> tensor signature profile -> XLA persistent compilation cache -> execution | ML/tensor compiler path; runtime shapes, dtypes, and static args drive specialized XLA executables. |
-| JAX/XLA on OpenFaaS + Redis | OpenFaaS pod -> Redis cache artifact import -> JAX persistent compilation cache -> first request | Serverless version of the JAX path for measuring baseline versus Redis-backed cold starts. |
-| Julia LLVM JIT | Execution -> `--trace-compile` precompile.jl export -> Redis import -> `include(precompile.jl)` at startup -> execution | Same warmup graph as JVM but for Julia's LLVM JIT; DaCapo-analog workloads (lusearch/h2/eclipse) in pure Julia. |
-| .NET PGO + ReadyToRun | Execution -> trace/MIBC -> ReadyToRun publish -> execution | Managed runtime comparison with JIT and AOT pieces; implemented as SDK/static-PGO scripts. |
-| Node/V8 | Execution -> V8 code cache export -> cachedData import -> execution | Runnable local prototype; useful serverless cold-start baseline. |
-| LLVM/Clang | Execution -> `.profraw` -> `.profdata` -> `-fprofile-use` -> execution | Strict AOT profile export/import loop; runnable local prototype. |
-
-## Key Evaluation Rule
-
-Do not report only steady-state throughput. Laurence Tratt's VM warmup work
-shows that warmup is often unstable. Evaluation should report cold-start
-latency, per-invocation warmup curves, time-to-hot, p50/p95/p99 latency,
-compilation events, deoptimization events, and artifact import/export overhead.
-
-## Sources
-
-- Go PGO: https://go.dev/doc/pgo
-- Node module compile cache: https://nodejs.org/download/release/v24.0.1/docs/api/module.html#module-compile-cache
-- Node `vm.Script` cached data: https://nodejs.org/api/vm.html#scriptcreatecacheddata
-- LLVM `llvm-profdata`: https://llvm.org/docs/CommandGuide/llvm-profdata.html
-- Clang PGO user manual: https://releases.llvm.org/17.0.1/tools/clang/docs/UsersManual.html#profile-guided-optimization
-- .NET ReadyToRun: https://learn.microsoft.com/en-us/dotnet/core/deploying/ready-to-run
-- .NET PGO design notes: https://github.com/dotnet/runtime/issues/43618
-- Wasmtime precompilation: https://docs.wasmtime.dev/examples-pre-compiling-wasm.html
-- AWS Lambda SnapStart: https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html
-- VM warmup paper: https://doi.org/10.1145/3133876
-- DaCapo benchmarks: https://www.dacapobench.org/
-- JAX tracing: https://docs.jax.dev/en/latest/tracing.html
-- JAX persistent compilation cache: https://docs.jax.dev/en/latest/persistent_compilation_cache.html
-- XLA overview: https://openxla.org/xla
