@@ -69,6 +69,14 @@ Run every prototype supported by the installed local toolchain:
 python3 scripts/run_profile_cache_matrix.py
 ```
 
+Validate the repository's Python, shell, and JSON sources without installing
+project dependencies:
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/check_repository.py --root .
+```
+
 OpenFaaS, Redis, JVM, Go, JAX, Julia, and .NET experiments have additional environment requirements documented beside their respective prototypes.
 
 ## Evaluation principles
@@ -99,4 +107,3 @@ Report more than steady-state throughput. A useful study should capture:
 - [JAX persistent compilation cache](https://docs.jax.dev/en/latest/persistent_compilation_cache.html)
 - [DaCapo benchmark suite](https://www.dacapobench.org/)
 - [Virtual-machine warmup study](https://doi.org/10.1145/3133876)
-

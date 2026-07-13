@@ -19,6 +19,10 @@ CACHE_DIR="$ARTIFACT_DIR/jax-cache"
 HLO_DIR="$ARTIFACT_DIR/hlo"
 PROFILE_JSON="$PROFILE_DIR/runtime-signatures.json"
 
+# Keep bootstrap state inside the ignored experiment directory unless the caller
+# explicitly selects a cache. This works in containers whose home is read-only.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$ARTIFACT_DIR/uv-cache}"
+
 ensure_python() {
   if [[ -n "$PYTHON_BIN" ]]; then
     return
@@ -39,11 +43,18 @@ ensure_python() {
     exit 2
   fi
 
-  base_python="${BASE_PYTHON:-/Users/maheshk/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3}"
-  if [[ ! -x "$base_python" ]]; then
-    base_python="python3"
+  base_python="${BASE_PYTHON:-python3}"
+  if [[ "$base_python" == */* ]]; then
+    if [[ ! -x "$base_python" ]]; then
+      echo "BASE_PYTHON is not executable: $base_python" >&2
+      exit 2
+    fi
+  elif ! command -v "$base_python" >/dev/null 2>&1; then
+    echo "Python interpreter is not available: $base_python" >&2
+    exit 2
   fi
 
+  mkdir -p "$UV_CACHE_DIR"
   uv venv --python "$base_python" .venv
   PYTHON_BIN=".venv/bin/python"
   uv pip install --python "$PYTHON_BIN" "jax[cpu]"

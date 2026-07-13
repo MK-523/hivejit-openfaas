@@ -5,8 +5,32 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
 BUILD="${BUILD:-$ROOT/build/$RUN_ID}"
 SRC="$ROOT/handler.c"
-CLANG=(xcrun clang)
-PROFDATA=(xcrun llvm-profdata)
+
+if command -v xcrun >/dev/null 2>&1; then
+  CLANG=(xcrun "${CLANG_BIN:-clang}")
+  PROFDATA=(xcrun "${LLVM_PROFDATA_BIN:-llvm-profdata}")
+else
+  CLANG=("${CLANG_BIN:-clang}")
+  PROFDATA=("${LLVM_PROFDATA_BIN:-llvm-profdata}")
+fi
+
+require_tool() {
+  local tool="$1"
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "SKIP llvm-aot-pgo: required tool '$tool' is not installed" >&2
+    exit 2
+  fi
+}
+
+if [[ "${CLANG[0]}" == "xcrun" ]]; then
+  if ! xcrun --find "${CLANG[1]}" >/dev/null 2>&1 || ! xcrun --find "${PROFDATA[1]}" >/dev/null 2>&1; then
+    echo "SKIP llvm-aot-pgo: clang and llvm-profdata must be available through xcrun" >&2
+    exit 2
+  fi
+else
+  require_tool "${CLANG[0]}"
+  require_tool "${PROFDATA[0]}"
+fi
 
 BENCHMARKS="${BENCHMARKS:-dacapo-lusearch dacapo-h2 dacapo-eclipse dacapo-jython dacapo-fop}"
 PROFILE_ITERS="${PROFILE_ITERS:-5 10}"

@@ -48,6 +48,11 @@ environment:
 PYTHON_BIN=/path/to/python BOOTSTRAP=0 bash prototypes/jax-xla-runtime-specialization/run_jax_xla.sh
 ```
 
+Bootstrap files are kept below the ignored experiment artifact directory, so
+the default also works when the user's home directory is read-only. Set
+`BASE_PYTHON` to choose the interpreter used to create `.venv`, or
+`UV_CACHE_DIR` to select a different package cache.
+
 ## Outputs
 
 ```text

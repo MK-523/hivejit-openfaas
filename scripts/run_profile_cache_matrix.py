@@ -35,7 +35,7 @@ def domains() -> list[Domain]:
         Domain(
             name="llvm-aot-pgo",
             command=["bash", "prototypes/llvm-aot-pgo/run_pgo.sh"],
-            tools=["bash", "xcrun"],
+            tools=["bash"],
             description="Clang instrumentation profile export and -fprofile-instr-use import.",
         ),
         Domain(
