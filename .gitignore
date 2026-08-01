@@ -27,3 +27,4 @@ prototypes/**/profiles/
 prototypes/**/results/
 generated/profile-cache-matrix/
 README.md.untracked-before-rebase
+.DS_Store
