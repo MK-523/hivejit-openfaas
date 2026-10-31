@@ -1,4 +1,5 @@
 .env
+.DS_Store
 .colima/
 work/openfaas-setup/
 work/jdk25u/
@@ -27,3 +28,7 @@ prototypes/**/profiles/
 prototypes/**/results/
 generated/profile-cache-matrix/
 README.md.untracked-before-rebase
+
+# Local generated outputs and fetched prototype source caches.
+outputs/
+prototypes/clang-native-profile-cache/
