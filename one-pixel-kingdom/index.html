@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090d19" />
+    <title>One-Pixel Kingdom</title>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="hud" class="hidden">
+      <div class="topbar">
+        <div class="brand"><i></i> ONE-PIXEL KINGDOM</div>
+        <div id="biome">VERDANT REACH · 0%</div>
+        <div class="seed">SEED <span id="seed"></span></div>
+      </div>
+      <div class="meters">
+        <div><label>CORE</label><span class="bar"><b id="health-bar"></b></span><em id="health">100</em></div>
+        <div><label>MAT</label><strong id="material">0</strong></div>
+        <div><label>FOOD</label><strong id="food">0</strong></div>
+        <div><label>ENERGY</label><strong id="energy">0</strong></div>
+      </div>
+      <div id="jobs" class="jobs"></div>
+      <div id="assignment" class="assignment hidden"></div>
+      <div id="toast" class="toast"></div>
+      <button id="mute" class="icon-button" aria-label="Toggle sound">SOUND: ON</button>
+    </div>
+    <div id="modal" class="modal">
+      <div id="start-card" class="card start-card">
+        <div class="eyebrow">A MICRO ROGUELITE</div>
+        <h1>ONE-PIXEL<br/><span>KINGDOM</span></h1>
+        <p>Begin as one. Become a civilization.</p>
+        <div class="how">
+          <div><kbd>WASD</kbd><small>STEER THE KINGDOM</small></div>
+          <div><kbd>1—5</kbd><small>ASSIGN NEW PIXELS</small></div>
+          <div><kbd>SPACE</kbd><small>COHESION PULSE</small></div>
+        </div>
+        <button id="start">BEGIN THE KINGDOM</button>
+        <small class="hint">Absorb bright fragments. Survive the severing.</small>
+      </div>
+      <div id="upgrade-card" class="card hidden">
+        <div class="eyebrow">EVOLUTION AVAILABLE</div>
+        <h2>CHOOSE YOUR LEGACY</h2>
+        <div id="upgrade-options" class="upgrade-options"></div>
+      </div>
+      <div id="end-card" class="card hidden">
+        <div id="end-label" class="eyebrow"></div>
+        <h2 id="end-title"></h2>
+        <p id="end-copy"></p>
+        <div id="stats" class="stats"></div>
+        <button id="restart">NEW WORLD</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
